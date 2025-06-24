@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "1008606336713",
+    "project_id": "chat-app-pgdm",
+    "storage_bucket": "chat-app-pgdm.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1008606336713:android:23d005f7e5c242b4ca9f18",
+        "android_client_info": {
+          "package_name": "br.edu.ifsp.aluno.chat_app_pgdm"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1008606336713-347tb2s9vk2lsggd49l5khcfue89mqf5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "br.edu.ifsp.aluno.chat_app_pgdm",
+            "certificate_hash": "ad97186e6a4c3b9543257b9a9a88233bdcd5c7dc"
+          }
+        },
+        {
+          "client_id": "1008606336713-fbtmutpt1disonfitn2esv6dhldotjqb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTXVJ7vBVEdeGdqy4w0Z2lno7BfJTeImI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1008606336713-fbtmutpt1disonfitn2esv6dhldotjqb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1008606336713-ngtu8ahsa0m5fc0r3kgfgt0cd588bfni.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "br.edu.ifsp.aluno.chatAppPgdm"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
