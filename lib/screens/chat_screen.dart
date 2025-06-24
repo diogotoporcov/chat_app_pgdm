@@ -63,11 +63,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _messageController.text.trim();
     // Allow sending message if either text or image is present, or both.
     if (text.isEmpty && _selectedImage == null) return;
-
     setState(() {
       _isSendingMessage = true; // Set loading state to true
     });
-
     String? imageUrlToSend;
     try {
       if (_selectedImage != null) {
@@ -309,7 +307,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                                     padding:
                                                     const EdgeInsets.only(left: 8),
                                                     child: Text(
-                                                      replyTo.text,
+                                                      replyTo.text.isEmpty && replyTo.imageUrl != null && replyTo.imageUrl!.isNotEmpty
+                                                          ? 'Imagem' // Display "Imagem" if no text and has image
+                                                          : replyTo.text,
                                                       maxLines: 2,
                                                       overflow: TextOverflow.ellipsis,
                                                       style: TextStyle(
@@ -384,7 +384,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           child: GestureDetector(
                             onTap: () => _scrollToMessage(_replyingToMessage!.id),
                             child: Text(
-                              'Respondendo: ${_replyingToMessage!.text}',
+                              _replyingToMessage!.text.isEmpty && _replyingToMessage!.imageUrl != null && _replyingToMessage!.imageUrl!.isNotEmpty
+                                  ? 'Respondendo: Imagem' // Display "Respondendo: Imagem" if no text and has image
+                                  : 'Respondendo: ${_replyingToMessage!.text}',
                               style: const TextStyle(
                                 fontStyle: FontStyle.italic,
                                 color: CupertinoColors.systemGrey,
