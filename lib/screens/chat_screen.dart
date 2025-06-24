@@ -33,6 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Message? _replyingToMessage;
   XFile? _selectedImage;
+  bool _isSendingMessage = false; // New state variable
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -62,51 +63,62 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _messageController.text.trim();
     // Allow sending message if either text or image is present, or both.
     if (text.isEmpty && _selectedImage == null) return;
+
+    setState(() {
+      _isSendingMessage = true; // Set loading state to true
+    });
+
     String? imageUrlToSend;
-    if (_selectedImage != null) {
-      if (kIsWeb) {
-        final bytes = await _selectedImage!.readAsBytes();
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('chat_images')
-            .child('${DateTime.now().millisecondsSinceEpoch}_${_selectedImage!.name}');
-        final uploadTask = storageRef.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-        final snapshot = await uploadTask;
-        imageUrlToSend = await snapshot.ref.getDownloadURL();
-      } else {
-        imageUrlToSend = await _uploadImage(_selectedImage!);
+    try {
+      if (_selectedImage != null) {
+        if (kIsWeb) {
+          final bytes = await _selectedImage!.readAsBytes();
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('chat_images')
+              .child('${DateTime.now().millisecondsSinceEpoch}_${_selectedImage!.name}');
+          final uploadTask = storageRef.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+          final snapshot = await uploadTask;
+          imageUrlToSend = await snapshot.ref.getDownloadURL();
+        } else {
+          imageUrlToSend = await _uploadImage(_selectedImage!);
+        }
+
+        setState(() {
+          _selectedImage = null; // Clear selected image after attempting to send
+        });
       }
 
+      // Only send if there's text or an image URL to send
+      if (text.isEmpty && imageUrlToSend == null) return;
+      await _chatService.sendMessage(
+        senderId: currentUser!.uid,
+        text: text, // Send the actual text message
+        chatId: widget.chatId,
+        participantsForChatCreation: [],
+        replyToMessageId: _replyingToMessage?.id,
+        imageUrl: imageUrlToSend, // Pass the image URL
+      );
       setState(() {
-        _selectedImage = null; // Clear selected image after attempting to send
+        _messageController.clear();
+        _replyingToMessage = null;
+      });
+      _messageFocusNode.requestFocus();
+
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } finally {
+      setState(() {
+        _isSendingMessage = false; // Set loading state to false
       });
     }
-
-    // Only send if there's text or an image URL to send
-    if (text.isEmpty && imageUrlToSend == null) return;
-    await _chatService.sendMessage(
-      senderId: currentUser!.uid,
-      text: text, // Send the actual text message
-      chatId: widget.chatId,
-      participantsForChatCreation: [],
-      replyToMessageId: _replyingToMessage?.id,
-      imageUrl: imageUrlToSend, // Pass the image URL
-    );
-    setState(() {
-      _messageController.clear();
-      _replyingToMessage = null;
-    });
-    _messageFocusNode.requestFocus();
-
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 
   void _scrollToMessage(String messageId) {
@@ -467,21 +479,29 @@ class _ChatScreenState extends State<ChatScreen> {
                         onLongPressStart: (details) {
                           if (_messageController.text.trim().isNotEmpty) {
                             setState(() {
+                              // No need to set state here, _pickImage will handle it
                             });
                             _pickImage();
                           }
                         },
-                        onLongPressEnd: (details)
-                        {
+                        onLongPressEnd: (details) {
                           setState(() {
+                            // No need to set state here
                           });
                         },
                         child: CupertinoButton(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          onPressed: _messageController.text.trim().isEmpty && _selectedImage == null ?
-                          _pickImage : _sendMessage,
-                          child: Icon(
-                            _messageController.text.trim().isEmpty && _selectedImage == null ? CupertinoIcons.photo : CupertinoIcons.arrow_up_circle_fill,
+                          onPressed: _isSendingMessage
+                              ? null // Disable button while sending
+                              : (_messageController.text.trim().isEmpty && _selectedImage == null
+                              ? _pickImage
+                              : _sendMessage),
+                          child: _isSendingMessage
+                              ? const CupertinoActivityIndicator() // Show loading indicator
+                              : Icon(
+                            _messageController.text.trim().isEmpty && _selectedImage == null
+                                ? CupertinoIcons.photo
+                                : CupertinoIcons.arrow_up_circle_fill,
                           ),
                         ),
                       ),
