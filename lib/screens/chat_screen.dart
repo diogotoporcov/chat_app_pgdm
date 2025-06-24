@@ -173,10 +173,26 @@ class _ChatScreenState extends State<ChatScreen> {
                       }
 
                       final messages = snapshot.data!;
+                      // Mark messages as read when they are loaded
+                      if (currentUser != null) {
+                        _chatService.markMessagesAsRead(
+                          chatId: widget.chatId,
+                          userId: currentUser!.uid,
+                          messages: messages,
+                        );
+                      }
+
+                      // Scroll to the bottom when messages are loaded or updated
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (_scrollController.hasClients) {
-                          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-                        }
+                        Future.delayed(const Duration(milliseconds: 50), () { // Added a small delay
+                          if (_scrollController.hasClients) {
+                            _scrollController.animateTo(
+                              _scrollController.position.maxScrollExtent,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOut,
+                            );
+                          }
+                        });
                       });
                       return ListView.builder(
                         controller: _scrollController,
