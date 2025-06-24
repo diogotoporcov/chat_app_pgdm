@@ -7,6 +7,7 @@ class Message {
   final DateTime sentAt;
   final List<String> readBy;
   final String? replyToMessageId;
+  final String? imageUrl; // Add this new field
 
   Message({
     required this.id,
@@ -15,6 +16,7 @@ class Message {
     required this.sentAt,
     required this.readBy,
     this.replyToMessageId,
+    this.imageUrl, // Initialize the new field
   });
 
   factory Message.fromMap(Map<String, dynamic> map, String id) {
@@ -25,6 +27,7 @@ class Message {
       sentAt: (map["sentAt"] as Timestamp).toDate(),
       readBy: List<String>.from(map["readBy"] ?? []),
       replyToMessageId: map["replyToMessageId"],
+      imageUrl: map["imageUrl"], // Map the new field
     );
   }
 
@@ -35,6 +38,7 @@ class Message {
       "sentAt": sentAt,
       "readBy": readBy,
       if (replyToMessageId != null) "replyToMessageId": replyToMessageId,
+      if (imageUrl != null) "imageUrl": imageUrl,
     };
   }
 }

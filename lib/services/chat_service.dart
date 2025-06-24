@@ -1,109 +1,84 @@
-import "package:cloud_firestore/cloud_firestore.dart";
-import "../models/chat.dart";
-import "../models/message.dart";
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../models/chat.dart';
+import '../models/message.dart';
+import '../models/user.dart';
 
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Verifica se já existe um chat individual entre dois usuários.
-  /// Retorna o chatId se existir, ou null se não existir.
-  Future<String?> getIndividualChatId(String uid1, String uid2) async {
-    final participants = [uid1, uid2]..sort();
-    final chatsQuery = await _firestore
+  Future<void> sendMessage({
+    required String senderId,
+    required String text,
+    required String chatId,
+    List<String> participantsForChatCreation = const [],
+    String? replyToMessageId,
+    String? imageUrl, // Added imageUrl parameter
+  }) async {
+    final message = Message(
+      id: '',
+      senderId: senderId,
+      text: text,
+      sentAt: DateTime.now(),
+      readBy: [senderId],
+      replyToMessageId: replyToMessageId,
+      imageUrl: imageUrl, // Pass imageUrl to the Message constructor
+    );
+
+    await _firestore
+        .collection("messages")
+        .doc(chatId)
+        .collection("messages")
+        .add(message.toMap());
+
+    // Update last message and updatedAt in chat
+    await _firestore.collection("chats").doc(chatId).set(
+      {
+        "lastMessage": text,
+        "updatedAt": DateTime.now(),
+        if (participantsForChatCreation.isNotEmpty)
+          "participants": participantsForChatCreation,
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<String?> getIndividualChatId(
+      String userId1, String userId2) async {
+    final chatQuery = await _firestore
         .collection("chats")
-        .where("participants", isEqualTo: participants)
+        .where("isGroup", isEqualTo: false)
+        .where("participants", arrayContains: userId1)
         .get();
 
-    if (chatsQuery.docs.isNotEmpty) {
-      return chatsQuery.docs.first.id;
+    for (var doc in chatQuery.docs) {
+      final participants = List<String>.from(doc["participants"]);
+      if (participants.contains(userId2)) {
+        return doc.id;
+      }
     }
     return null;
   }
 
-  /// Cria um chat (individual ou grupo) e retorna o chatId.
-  /// participants deve ter ao menos 2 UIDs.
   Future<String> createChat(List<String> participants) async {
-    if (participants.length < 2) {
-      throw Exception("Chat precisa ter ao menos 2 participantes");
-    }
-    participants.sort();
-
-    final chatData = Chat(
-      id: "",
-      participants: participants,
-      lastMessage: "",
-      updatedAt: DateTime.now(),
-    ).toMap();
+    final chatData = {
+      "participants": participants,
+      "lastMessage": "Chat criado",
+      "updatedAt": DateTime.now(),
+      "isGroup": false,
+    };
 
     final docRef = await _firestore.collection("chats").add(chatData);
     return docRef.id;
   }
 
-  /// Envia mensagem para chatId.
-  /// Se chatId for null, cria chat individual automático entre sender e recipient.
-  /// Retorna o ID da mensagem criada.
-  Future<String> sendMessage({
-    required String senderId,
-    required String text,
-    required String? chatId,
-    required List<String> participantsForChatCreation, // necessário se chatId for null
-    String? replyToMessageId,
-  }) async {
-    String finalChatId = chatId ?? "";
-
-    if (finalChatId.isEmpty) {
-      // cria chat individual se ainda não existir
-      if (participantsForChatCreation.length != 2) {
-        throw Exception("Para criar chat individual precisa exatamente 2 participantes");
-      }
-      // verifica se já existe chat
-      final existingChatId = await getIndividualChatId(
-        participantsForChatCreation[0],
-        participantsForChatCreation[1],
-      );
-      if (existingChatId != null) {
-        finalChatId = existingChatId;
-      } else {
-        finalChatId = await createChat(participantsForChatCreation);
-      }
-    }
-
-    // cria a mensagem
-    final messageData = Message(
-      id: "",
-      senderId: senderId,
-      text: text,
-      sentAt: DateTime.now(),
-      readBy: [senderId], // quem enviou já leu
-      replyToMessageId: replyToMessageId,
-    ).toMap();
-
-    final messageRef = await _firestore.collection("messages").doc(finalChatId).collection("messages").add(messageData);
-
-    // atualiza o chat com lastMessage e updatedAt
-    await _firestore.collection("chats").doc(finalChatId).update({
-      "lastMessage": text,
-      "updatedAt": DateTime.now(),
-    });
-
-    return messageRef.id;
-  }
-
-  Future<String> createGroupChat({
-    required List<String> participants,
-    String? groupName,
-  }) async {
-    if (participants.length < 2) {
-      throw Exception("Grupo precisa ter ao menos 2 participantes");
-    }
-
-    participants.sort();
-
+  Future<String> createGroupChat(
+      String groupName, List<String> participants) async {
     final chatData = {
       "participants": participants,
-      "lastMessage": "",
+      "lastMessage": "Grupo criado",
       "updatedAt": DateTime.now(),
-      if (groupName != null) "groupName": groupName,
+      "groupName": groupName,
       "isGroup": true,
     };
 
@@ -148,11 +123,56 @@ class ChatService {
             .collection("messages")
             .doc(msg.id);
         batch.update(msgRef, {
-          "readBy": FieldValue.arrayUnion([userId]),
+          "readBy": FieldValue.arrayUnion([userId]) // Corrected: Removed 'fb_auth.' prefix
         });
       }
     }
 
     await batch.commit();
+  }
+
+  Future<User?> fetchUserFromFirestore(String uid) async {
+    final doc = await _firestore.collection("users").doc(uid).get();
+    if (doc.exists) {
+      return User.fromMap(doc.data()!);
+    }
+    return null;
+  }
+
+  Future<void> updateProfilePicture(String uid, String? imageUrl) async {
+    await _firestore.collection("users").doc(uid).update({
+      "profilePictureUrl": imageUrl,
+    });
+  }
+
+  Future<void> updateStatusMessage(String uid, String statusMessage) async {
+    await _firestore.collection("users").doc(uid).update({
+      "statusMessage": statusMessage,
+    });
+  }
+
+  Future<void> updateUsername(String uid, String newUsername) async {
+    final usernameExists = await _firestore
+        .collection("users")
+        .where("username", isEqualTo: newUsername)
+        .limit(1)
+        .get();
+
+    if (usernameExists.docs.isNotEmpty && usernameExists.docs.first.id != uid) {
+      throw Exception("Nome de usuário já está em uso.");
+    }
+
+    await _firestore.collection("users").doc(uid).update({
+      "username": newUsername,
+    });
+  }
+
+  Future<void> deleteMessage(String chatId, String messageId) async {
+    await _firestore
+        .collection("messages")
+        .doc(chatId)
+        .collection("messages")
+        .doc(messageId)
+        .delete();
   }
 }
