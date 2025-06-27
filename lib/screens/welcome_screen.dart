@@ -32,7 +32,7 @@ class WelcomeScreen extends StatelessWidget {
               children: [
                 const SizedBox(height: 50), // Margem adicionada no topo
                 const Text(
-                  "Bem-vindo ao seu App de Mensagens", // Texto de boas-vindas
+                  "Bem-vindo ao Chat App PGDM", // Texto de boas-vindas
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w600,
